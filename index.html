@@ -214,7 +214,7 @@
 
   <div id="activar">
     <h2>🎵 Punto Musical</h2>
-    <p>Importa una imagen PNG o JPEG, o elige un patrón para seguirlo con el dedo o el ratón mientras interpretas una melodía.</p>
+    <p>Importa una imagen PNG o JPEG, o elige un patrón para seguirlo con el dedo o el ratón. Pulsa Comenzar y toca la zona para oír las notas; si no suena, comprueba el volumen y el modo silencio del iPhone.</p>
     <button id="iniciar" type="button">Comenzar</button>
   </div>
 </div>
@@ -463,6 +463,7 @@
       throw new Error("Este navegador no permite generar audio.");
     }
 
+    if ("audioSession" in navigator) navigator.audioSession.type = "playback";
     audio = new AudioContextClass();
     const reanudacion = audio.state === "running" ? Promise.resolve() : audio.resume();
 
