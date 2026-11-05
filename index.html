@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Punto Musical</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; margin: 0; overflow: hidden;
+    font-family: Arial, sans-serif;
+  }
+  body {
+    background: #d9f5c5; color: #25432b;
+    user-select: none; -webkit-user-select: none;
+  }
+  #juego {
+    width: 100%; height: 100vh; height: 100dvh; min-height: 180px;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+    background: #d9f5c5;
+  }
+  header {
+    flex: 0 0 auto; display: flex; align-items: center;
+    justify-content: space-between; gap: 8px;
+    padding: clamp(8px, 2vh, 18px) clamp(12px, 3vw, 32px);
+  }
+  h1 { margin: 0; font-size: clamp(16px, 2.5vw, 26px); }
+  #estado {
+    display: flex; flex: 0 1 auto; align-items: center; justify-content: center;
+    gap: clamp(7px, 1.5vw, 16px); text-align: right; white-space: nowrap;
+    min-width: 0; max-width: 55%;
+    padding: clamp(6px, 1.2vh, 11px) clamp(10px, 1.8vw, 18px);
+    border: 1px solid rgba(43, 91, 46, 0.28);
+    border-radius: 12px; background: rgba(255,255,255,0.42);
+    box-shadow: 0 2px 8px rgba(37,67,43,0.08);
+    font-size: clamp(12px, 1.8vw, 18px); font-variant-numeric: tabular-nums;
+  }
+  #nota { font-size: clamp(17px, 2.5vw, 25px); font-weight: 800; }
+  #frecuencia { font-size: clamp(11px, 1.7vw, 16px); opacity: 0.8; }
+  header h1 { min-width: 0; flex: 1 1 auto; }
+  @media (max-width: 420px) {
+    header { gap: 6px; }
+    #estado { max-width: 58%; gap: 6px; padding: 6px 8px; }
+    #nota { font-size: clamp(15px, 4.5vw, 19px); }
+    #frecuencia { font-size: clamp(10px, 3vw, 12px); }
+  }
+  #zona {
+    position: relative; flex: 1; min-height: 0;
+    margin: 0 clamp(8px, 2vw, 24px) clamp(8px, 2vh, 18px);
+    border: 2px solid rgba(43, 91, 46, 0.25); border-radius: 16px;
+    overflow: hidden; cursor: crosshair; touch-action: none;
+  }
+  .mitad { position: absolute; left: 0; width: 100%; height: 50%; pointer-events: none; }
+  #agudos { top: 0; background: rgba(255,255,255,0.12); }
+  #graves { bottom: 0; background: rgba(76,139,61,0.07); }
+  #rejillaNotas {
+    position: absolute; inset: 0; z-index: 2;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(2.083333% - 1px),
+      rgba(48, 83, 48, 0.13) calc(2.083333% - 1px),
+      rgba(48, 83, 48, 0.13) 2.083333%
+    );
+  }
+  #eje {
+    position: absolute; top: 50%; left: 0; width: 100%; height: 3px;
+    background: #426c40; transform: translateY(-50%); pointer-events: none; z-index: 2;
+  }
+  #marcador {
+    position: absolute; width: clamp(28px, 5vw, 48px); height: clamp(28px, 5vw, 48px);
+    border: 4px solid white; border-radius: 50%; background: #388e3c;
+    box-shadow: 0 2px 12px #355c3555; transform: translate(-50%, -50%);
+    left: 50%; top: 50%; opacity: 0; pointer-events: none; z-index: 3;
+  }
+  #imagenPatron {
+    display: none; position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: fill;
+    opacity: 0.78; pointer-events: none; z-index: 1;
+  }
+  #guiaPatron {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 1; overflow: visible;
+  }
+  #trazoPatron {
+    fill: none; stroke: #397b39; stroke-width: 7;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 14 12; opacity: 0.68;
+    vector-effect: non-scaling-stroke;
+  }
+  footer {
+    flex: 0 0 auto; width: 100%; min-width: 0;
+    padding: 0 10px clamp(7px, 1.5vh, 14px);
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    text-align: center; font-size: 11px; opacity: 0.9;
+    scrollbar-width: thin;
+  }
+  #controles {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; flex: 0 0 auto; width: max-content; margin: 0 auto;
+    flex-wrap: nowrap;
+  }
+  #etiquetaDibujo {
+    flex: 0 0 auto; white-space: nowrap;
+    font-size: 11px; font-weight: 700; color: #25432b;
+  }
+  #grupoGestionPatrones {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; flex: 0 0 auto; width: max-content;
+    padding: 4px 6px; border: 1px solid #76a879;
+    border-radius: 11px; background: rgba(112, 170, 116, 0.16);
+  }
+  #grupoGestionPatrones button {
+    background: #5b9b62; color: #fff;
+    border: 1px solid rgba(42, 105, 50, 0.18);
+  }
+  #grupoGestionPatrones button:hover { background: #4b8952; }
+  #grupoGestionPatrones button:active { background: #3f7946; }
+  footer button, footer select {
+    flex: 0 0 auto; white-space: nowrap;
+    padding: 7px 9px; font-size: clamp(10px, 1.15vw, 13px);
+    border-radius: 8px; box-shadow: none;
+  }
+  footer select {
+    max-width: min(30vw, 190px); border: 1px solid #8bb582;
+    background: #f5ffef; color: #25432b; font-weight: 600;
+  }
+  #instruccion {
+    order: 99; flex: 0 0 auto; max-width: 135px; margin-left: auto;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-align: right; font-size: 10px; line-height: 1.1;
+  }
+  #dibujarPatron.modoActivo { background: #a65b20; }
+  @media (max-height: 500px) {
+    footer { gap: 5px; padding-bottom: 5px; }
+    footer button, footer select { padding: 5px 7px; }
+    #instruccion { display: none; }
+    #etiquetaDibujo { font-size: 10px; }
+  }
+  @media (max-width: 760px) {
+    footer { gap: 5px; padding-left: 6px; padding-right: 6px; }
+    footer button, footer select { padding: 6px 7px; font-size: 10px; }
+    #grupoGestionPatrones { gap: 4px; padding: 3px 4px; }
+    #grupoGestionPatrones button { padding: 6px 6px; font-size: 10px; }
+    #instruccion { display: none; }
+    #etiquetaDibujo { font-size: 10px; }
+  }
+  #activar {
+    position: absolute; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px;
+    background: rgba(217,245,197,0.94); text-align: center; padding: 24px;
+  }
+  #activar h2 { margin: 0; font-size: clamp(24px, 4vw, 36px); }
+  #activar p { max-width: 440px; line-height: 1.5; margin: 0; }
+  button {
+    background: #397b39; color: white; border: 0; border-radius: 12px;
+    padding: 14px 28px; font-size: 17px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(30,70,30,0.18);
+    touch-action: manipulation;
+  }
+  button:active { transform: scale(0.97); }
+  @media (orientation: portrait) {
+    header { padding-top: 8px; padding-bottom: 8px; }
+    header h1 { font-size: 16px; }
+    #zona { margin-bottom: 6px; }
+  }
+</style>
+</head>
+<body>
+<div id="juego">
+  <header>
+    <h1>Punto Musical</h1>
+    <div id="estado" aria-live="polite">
+      <span id="nota">A4</span>
+      <span id="frecuencia">440,00 Hz</span>
+    </div>
+  </header>
+
+  <main id="zona" aria-label="Zona interactiva de sonido">
+    <div id="agudos" class="mitad"></div>
+    <div id="graves" class="mitad"></div>
+    <div id="rejillaNotas" aria-hidden="true"></div>
+    <div id="eje"></div>
+    <img id="imagenPatron" alt="" aria-hidden="true">
+    <svg id="guiaPatron" viewBox="0 0 1000 500" preserveAspectRatio="none"
+         aria-hidden="true">
+      <path id="trazoPatron" d="M 40 250 L 960 250"></path>
+    </svg>
+    <div id="marcador"></div>
+  </main>
+
+  <footer>
+    <div id="controles">
+      <span id="etiquetaDibujo">Dibujo</span>
+      <select id="selectorPatron" aria-label="Elegir patrón">
+        <option value="" selected>Seleccionar patrón</option>
+        <option value="ninguno">Ninguno</option>
+      </select>
+      <button id="aleatorioPatron" type="button">Aleatorio</button>
+      <button id="importarImagen" type="button">Importar imagen</button>
+      <input id="archivoImagen" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
+      <button id="quitarImagen" type="button" hidden>Quitar imagen</button>
+      <div id="grupoGestionPatrones" aria-label="Gestión de patrones">
+        <button id="dibujarPatron" type="button">Crear patrón</button>
+        <button id="guardarPatron" type="button">Guardar</button>
+        <button id="eliminarPatron" type="button">Eliminar patrón</button>
+      </div>
+    </div>
+    <span id="instruccion" hidden></span>
+  </footer>
+
+  <div id="activar">
+    <h2>🎵 Punto Musical</h2>
+    <p>Importa una imagen PNG o JPEG, o elige un patrón para seguirlo con el dedo o el ratón mientras interpretas una melodía.</p>
+    <button id="iniciar" type="button">Comenzar</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const zona = document.getElementById("zona");
+  const notaTexto = document.getElementById("nota");
+  const frecuenciaTexto = document.getElementById("frecuencia");
+  const marcador = document.getElementById("marcador");
+  const activar = document.getElementById("activar");
+  const boton = document.getElementById("iniciar");
+  const trazoPatron = document.getElementById("trazoPatron");
+  const guiaPatron = document.getElementById("guiaPatron");
+  const imagenPatron = document.getElementById("imagenPatron");
+  const importarImagen = document.getElementById("importarImagen");
+  const archivoImagen = document.getElementById("archivoImagen");
+  const quitarImagen = document.getElementById("quitarImagen");
+  const selectorPatron = document.getElementById("selectorPatron");
+  const aleatorioPatron = document.getElementById("aleatorioPatron");
+  const dibujarPatron = document.getElementById("dibujarPatron");
+  const guardarPatron = document.getElementById("guardarPatron");
+  const eliminarPatron = document.getElementById("eliminarPatron");
+  const instruccion = document.getElementById("instruccion");
+  const patronesBase = [
+    { nombre: "Línea horizontal", d: "M 40 250 L 960 250" },
+    { nombre: "Subida", d: "M 40 420 L 960 80" },
+    { nombre: "Bajada", d: "M 40 80 L 960 420" },
+    { nombre: "Onda suave", d: "M 40 250 C 180 40, 320 40, 500 250 S 820 460, 960 250" },
+    { nombre: "Montaña", d: "M 40 400 L 270 100 L 500 400 L 730 100 L 960 400" },
+    { nombre: "Curva ascendente", d: "M 40 420 C 300 420, 620 80, 960 80" },
+    { nombre: "Curva descendente", d: "M 40 80 C 300 80, 620 420, 960 420" },
+    { nombre: "Doble onda", d: "M 40 250 C 150 40, 270 40, 380 250 S 610 460, 720 250 S 850 40, 960 250" }
+  ];
+  let patronesGuardados = [];
+  let patronActual = null;
+  let modoDibujo = false;
+  let puntosDibujo = [];
+  let dibujando = false;
+  const clavePatrones = "puntoMusicalPatronesGuardadosV1";
+
+  function cargarPatronesGuardados() {
+    try {
+      patronesGuardados = JSON.parse(localStorage.getItem(clavePatrones) || "[]");
+      if (!Array.isArray(patronesGuardados)) patronesGuardados = [];
+    } catch (_) {
+      patronesGuardados = [];
+    }
+    actualizarSelector();
+  }
+
+  function actualizarSelector() {
+    const valorAnterior = selectorPatron.value;
+    selectorPatron.innerHTML = "";
+    const marcador = document.createElement("option");
+    marcador.value = "";
+    marcador.textContent = "Seleccionar patrón";
+    marcador.disabled = true;
+    selectorPatron.appendChild(marcador);
+
+    // Opción para dejar la zona de interpretación sin ningún dibujo.
+    const opcionNinguno = document.createElement("option");
+    opcionNinguno.value = "ninguno";
+    opcionNinguno.textContent = "Ninguno";
+    selectorPatron.appendChild(opcionNinguno);
+
+    patronesBase.forEach((p, i) => {
+      const option = document.createElement("option");
+      option.value = "base:" + i;
+      option.textContent = p.nombre;
+      selectorPatron.appendChild(option);
+    });
+    if (patronesGuardados.length) {
+      const grupo = document.createElement("optgroup");
+      grupo.label = "Mis patrones guardados";
+      patronesGuardados.forEach((p, i) => {
+        const option = document.createElement("option");
+        option.value = "guardado:" + i;
+        option.textContent = p.nombre;
+        grupo.appendChild(option);
+      });
+      selectorPatron.appendChild(grupo);
+    }
+    if ([...selectorPatron.options].some(o => o.value === valorAnterior)) {
+      selectorPatron.value = valorAnterior;
+    } else {
+      selectorPatron.value = "";
+    }
+  }
+
+  function ocultarImagenPatron() {
+    imagenPatron.style.display = "none";
+    imagenPatron.removeAttribute("src");
+    guiaPatron.style.display = "block";
+    quitarImagen.hidden = true;
+  }
+
+  function aplicarPatron(patron) {
+    ocultarImagenPatron();
+    patronActual = patron;
+    trazoPatron.setAttribute("d", patron.d);
+    if (!modoDibujo) instruccion.textContent =
+      "Sigue «" + patron.nombre + "» con el dedo o el ratón mientras suena la flauta.";
+  }
+
+  importarImagen.addEventListener("click", () => archivoImagen.click());
+
+  archivoImagen.addEventListener("change", () => {
+    const archivo = archivoImagen.files && archivoImagen.files[0];
+    if (!archivo) return;
+
+    // Vaciar el selector permite volver a importar incluso el mismo archivo.
+    archivoImagen.value = "";
+
+    const nombre = archivo.name.toLowerCase();
+    const extensionValida = /\.(png|jpe?g)$/i.test(nombre);
+    const tipoValido = archivo.type === "image/png" || archivo.type === "image/jpeg";
+    if (!tipoValido && !extensionValida) {
+      alert("Selecciona una imagen PNG o JPEG/JPG.");
+      return;
+    }
+
+    const lector = new FileReader();
+    lector.onload = () => {
+      imagenPatron.src = lector.result;
+      imagenPatron.style.display = "block";
+      guiaPatron.style.display = "none";
+      quitarImagen.hidden = false;
+      modoDibujo = false;
+      dibujando = false;
+      dibujarPatron.classList.remove("modoActivo");
+      dibujarPatron.textContent = "Crear patrón";
+      patronActual = null;
+      selectorPatron.value = "";
+      instruccion.textContent = "Sigue el dibujo de la imagen con el dedo o el ratón. La imagen solo sirve como guía visual.";
+    };
+    lector.onerror = () => alert("No se ha podido abrir la imagen.");
+    lector.readAsDataURL(archivo);
+  });
+
+  quitarImagen.addEventListener("click", () => {
+    ocultarImagenPatron();
+    archivoImagen.value = "";
+    seleccionarPatron();
+  });
+
+  function seleccionarPatron() {
+    const valor = selectorPatron.value;
+    if (!valor || valor === "ninguno") {
+      patronActual = null;
+      ocultarImagenPatron();
+      guiaPatron.style.display = "none";
+      modoDibujo = false;
+      dibujando = false;
+      dibujarPatron.classList.remove("modoActivo");
+      dibujarPatron.textContent = "Crear patrón";
+      instruccion.textContent = "";
+      return;
+    }
+    if (valor.startsWith("guardado:")) {
+      const p = patronesGuardados[Number(valor.split(":")[1])];
+      if (p) aplicarPatron(p);
+    } else {
+      const p = patronesBase[Number(valor.split(":")[1])];
+      if (p) aplicarPatron(p);
+    }
+  }
+
+  function convertirPuntosATrazado(puntos) {
+    if (!puntos.length) return "M 40 250 L 960 250";
+    const reducidos = [];
+    const ultimo = puntos[puntos.length - 1];
+    const primero = puntos[0];
+    reducidos.push(primero);
+    // Reducir puntos cercanos para que el trazado sea ligero y fluido.
+    for (let i = 1; i < puntos.length - 1; i++) {
+      const anterior = reducidos[reducidos.length - 1];
+      const dx = puntos[i].x - anterior.x;
+      const dy = puntos[i].y - anterior.y;
+      if (Math.hypot(dx, dy) >= 5) reducidos.push(puntos[i]);
+    }
+    if (puntos.length > 1) reducidos.push(ultimo);
+    return reducidos.map((p, i) =>
+      (i === 0 ? "M " : "L ") + p.x.toFixed(1) + " " + p.y.toFixed(1)
+    ).join(" ");
+  }
+
+  function puntoRelativo(evento) {
+    const rect = zona.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1000, ((evento.clientX - rect.left) / rect.width) * 1000)),
+      y: Math.max(0, Math.min(500, ((evento.clientY - rect.top) / rect.height) * 500))
+    };
+  }
+
+  cargarPatronesGuardados();
+  selectorPatron.value = "";
+  guiaPatron.style.display = "none";
+  patronActual = null;
+  const nombres = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+
+  let audio = null;
+  let oscilador = null;
+  let ganancia = null;
+  let activo = false;
+  let puntero = null;
+  let armonicos = [];
+
+  function obtenerNota(y) {
+    const rect = zona.getBoundingClientRect();
+    const posicion = Math.max(0, Math.min(1, (y - rect.top) / rect.height));
+    // C7 arriba (MIDI 96), C3 abajo (MIDI 48).
+    const midi = Math.round(96 - posicion * 48);
+    const frecuencia = 440 * Math.pow(2, (midi - 69) / 12);
+    const nombre = nombres[midi % 12] + (Math.floor(midi / 12) - 1);
+    return { midi, frecuencia, nombre };
+  }
+
+  function mostrarNota(x, y) {
+    const dato = obtenerNota(y);
+    const rect = zona.getBoundingClientRect();
+    notaTexto.textContent = dato.nombre;
+    frecuenciaTexto.textContent = dato.frecuencia.toLocaleString("es-ES", {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    }) + " Hz";
+    marcador.style.left = (x - rect.left) + "px";
+    marcador.style.top = (y - rect.top) + "px";
+    marcador.style.opacity = "1";
+
+    if (oscilador && audio && activo) {
+      const ahora = audio.currentTime;
+      oscilador.frequency.setTargetAtTime(dato.frecuencia, ahora, 0.025);
+      armonicos.forEach((osc, i) => {
+        osc.frequency.setTargetAtTime(dato.frecuencia * (i + 2), ahora, 0.025);
+      });
+    }
+  }
+
+  function prepararAudio() {
+    if (audio) return true;
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      throw new Error("Este navegador no permite generar audio.");
+    }
+
+    audio = new AudioContextClass();
+
+    const mezcla = audio.createGain();
+    mezcla.gain.value = 0.72;
+
+    oscilador = audio.createOscillator();
+    oscilador.type = "sine";
+
+    const armonico2 = audio.createOscillator();
+    armonico2.type = "sine";
+    const nivel2 = audio.createGain();
+    nivel2.gain.value = 0.16;
+
+    const armonico3 = audio.createOscillator();
+    armonico3.type = "sine";
+    const nivel3 = audio.createGain();
+    nivel3.gain.value = 0.045;
+
+    // Vibrato suave de la flauta sintetizada.
+    const vibrato = audio.createOscillator();
+    vibrato.type = "sine";
+    vibrato.frequency.value = 5.2;
+    const profundidad = audio.createGain();
+    profundidad.gain.value = 2.2;
+    vibrato.connect(profundidad);
+    profundidad.connect(oscilador.frequency);
+
+    armonico2.frequency.value = 440 * 2;
+    armonico3.frequency.value = 440 * 3;
+
+    oscilador.connect(mezcla);
+    armonico2.connect(nivel2);
+    nivel2.connect(mezcla);
+    armonico3.connect(nivel3);
+    nivel3.connect(mezcla);
+
+    // El buffer y la cadena de audio se preparan antes de comenzar.
+    const longitud = audio.sampleRate * 2;
+    const bufferRuido = audio.createBuffer(1, longitud, audio.sampleRate);
+    const datosRuido = bufferRuido.getChannelData(0);
+    for (let i = 0; i < longitud; i++) datosRuido[i] = Math.random() * 2 - 1;
+
+    const ruido = audio.createBufferSource();
+    ruido.buffer = bufferRuido;
+    ruido.loop = true;
+    const filtroAire = audio.createBiquadFilter();
+    filtroAire.type = "bandpass";
+    filtroAire.frequency.value = 2200;
+    filtroAire.Q.value = 0.7;
+    const nivelAire = audio.createGain();
+    nivelAire.gain.value = 0.003;
+    ruido.connect(filtroAire);
+    filtroAire.connect(nivelAire);
+    nivelAire.connect(mezcla);
+
+    ganancia = audio.createGain();
+    ganancia.gain.value = 0;
+    mezcla.connect(ganancia);
+    ganancia.connect(audio.destination);
+
+    armonicos = [armonico2, armonico3];
+    oscilador.start();
+    armonico2.start();
+    armonico3.start();
+    vibrato.start();
+    ruido.start();
+    return true;
+  }
+
+  async function comenzarAudio() {
+    prepararAudio();
+    // Los navegadores suelen mantener el AudioContext suspendido hasta
+    // que el usuario pulsa «Comenzar»; en ese momento se activa el sonido.
+    if (audio.state === "suspended") await audio.resume();
+    return true;
+  }
+
+  async function iniciarJuego() {
+    boton.disabled = true;
+    boton.textContent = "Iniciando…";
+    try {
+      const listo = await comenzarAudio();
+      if (listo) {
+        activar.style.display = "none";
+      } else {
+        boton.disabled = false;
+        boton.textContent = "Comenzar";
+      }
+    } catch (error) {
+      console.error(error);
+      alert("No se ha podido activar el sonido. Comprueba que el navegador permite audio y vuelve a intentarlo.");
+      boton.disabled = false;
+      boton.textContent = "Comenzar";
+    }
+  }
+
+  boton.addEventListener("click", iniciarJuego);
+
+  selectorPatron.addEventListener("change", seleccionarPatron);
+
+  aleatorioPatron.addEventListener("click", () => {
+    const total = patronesBase.length;
+    const actual = selectorPatron.value ? Number(selectorPatron.value.split(":")[1]) : -1;
+    let siguiente = Math.floor(Math.random() * total);
+    if (total > 1 && siguiente === actual) siguiente = (siguiente + 1) % total;
+    selectorPatron.value = "base:" + siguiente;
+    seleccionarPatron();
+  });
+
+  dibujarPatron.addEventListener("click", () => {
+    modoDibujo = !modoDibujo;
+    dibujarPatron.classList.toggle("modoActivo", modoDibujo);
+    dibujarPatron.textContent = modoDibujo ? "Terminar dibujo" : "Crear patrón";
+    instruccion.textContent = modoDibujo
+      ? "Dibuja un recorrido dentro de la zona con el dedo o el ratón. Después pulsa Guardar."
+      : "Sigue el patrón con el dedo o el ratón mientras suena la flauta.";
+    if (modoDibujo) {
+      ocultarImagenPatron();
+      dibujando = false;
+      puntosDibujo = [];
+    }
+  });
+
+  guardarPatron.addEventListener("click", () => {
+    if (!patronActual || !patronActual.d) return;
+    const nombre = prompt("¿Qué nombre quieres ponerle a este patrón?", "Mi patrón " + (patronesGuardados.length + 1));
+    if (!nombre || !nombre.trim()) return;
+    patronesGuardados.push({ nombre: nombre.trim(), d: patronActual.d });
+    try {
+      localStorage.setItem(clavePatrones, JSON.stringify(patronesGuardados));
+      actualizarSelector();
+      selectorPatron.value = "guardado:" + (patronesGuardados.length - 1);
+      seleccionarPatron();
+      instruccion.textContent = "Patrón guardado en este navegador.";
+    } catch (_) {
+      alert("No se ha podido guardar. Puedes exportar el patrón desde otro navegador o permitir el almacenamiento local.");
+    }
+  });
+
+  eliminarPatron.addEventListener("click", () => {
+    const valor = selectorPatron.value;
+    if (!valor.startsWith("guardado:")) {
+      alert("Selecciona primero uno de tus patrones guardados para eliminarlo. Los patrones predefinidos no se pueden borrar.");
+      return;
+    }
+
+    const indice = Number(valor.split(":")[1]);
+    const patron = patronesGuardados[indice];
+    if (!patron) {
+      alert("No se ha encontrado ese patrón guardado.");
+      return;
+    }
+
+    if (!confirm('¿Quieres eliminar el patrón "' + patron.nombre + '"?')) return;
+
+    patronesGuardados.splice(indice, 1);
+    try {
+      localStorage.setItem(clavePatrones, JSON.stringify(patronesGuardados));
+      actualizarSelector();
+      selectorPatron.value = "";
+      seleccionarPatron();
+      instruccion.textContent = "Patrón eliminado.";
+    } catch (_) {
+      alert("No se ha podido actualizar la lista de patrones guardados.");
+    }
+  });
+
+  zona.addEventListener("pointerdown", async (evento) => {
+    evento.preventDefault();
+    puntero = evento.pointerId;
+    try { zona.setPointerCapture(evento.pointerId); } catch (_) {}
+
+    if (modoDibujo) {
+      dibujando = true;
+      puntosDibujo = [puntoRelativo(evento)];
+      trazoPatron.setAttribute("d", convertirPuntosATrazado(puntosDibujo));
+      detenerSonido();
+      return;
+    }
+
+    try {
+      if (!audio) await comenzarAudio();
+      if (audio && audio.state === "suspended") await audio.resume();
+      activo = true;
+      mostrarNota(evento.clientX, evento.clientY);
+      ganancia.gain.cancelScheduledValues(audio.currentTime);
+      ganancia.gain.setTargetAtTime(0.15, audio.currentTime, 0.015);
+    } catch (error) {
+      console.error(error);
+      detenerSonido();
+    }
+  });
+
+  zona.addEventListener("pointermove", (evento) => {
+    if (evento.pointerId !== puntero) return;
+    if (modoDibujo && dibujando) {
+      puntosDibujo.push(puntoRelativo(evento));
+      const d = convertirPuntosATrazado(puntosDibujo);
+      trazoPatron.setAttribute("d", d);
+      patronActual = { nombre: "Patrón personalizado", d };
+      return;
+    }
+    mostrarNota(evento.clientX, evento.clientY);
+  });
+
+  function detenerSonido() {
+    if (!audio || !ganancia || !activo) return;
+    activo = false;
+    ganancia.gain.cancelScheduledValues(audio.currentTime);
+    ganancia.gain.setTargetAtTime(0, audio.currentTime, 0.025);
+  }
+
+  function finalizarPuntero(evento) {
+    if (evento.pointerId !== puntero) return;
+    puntero = null;
+    if (modoDibujo && dibujando) {
+      dibujando = false;
+      patronActual = { nombre: "Patrón personalizado", d: trazoPatron.getAttribute("d") };
+      instruccion.textContent = "Patrón dibujado. Pulsa Guardar para conservarlo.";
+      return;
+    }
+    detenerSonido();
+  }
+
+  zona.addEventListener("pointerup", finalizarPuntero);
+  zona.addEventListener("pointercancel", finalizarPuntero);
+  zona.addEventListener("lostpointercapture", finalizarPuntero);
+
+  // Preparar anticipadamente el sintetizador; el sonido solo se activa
+  // cuando el usuario pulsa «Comenzar» o interactúa con la zona.
+  try {
+    prepararAudio();
+  } catch (error) {
+    console.warn("El audio se preparará al pulsar Comenzar:", error);
+  }
+})();
+</script>
+</body>
+</html>
