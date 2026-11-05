@@ -227,6 +227,8 @@
   const marcador = document.getElementById("marcador");
   const activar = document.getElementById("activar");
   const boton = document.getElementById("iniciar");
+  const mensajeActivacion = activar.querySelector("p");
+  const mensajeActivacionInicial = mensajeActivacion.textContent;
   const trazoPatron = document.getElementById("trazoPatron");
   const guiaPatron = document.getElementById("guiaPatron");
   const imagenPatron = document.getElementById("imagenPatron");
@@ -462,6 +464,7 @@
     }
 
     audio = new AudioContextClass();
+    const reanudacion = audio.state === "running" ? Promise.resolve() : audio.resume();
 
     const mezcla = audio.createGain();
     mezcla.gain.value = 0.72;
@@ -497,7 +500,7 @@
     armonico3.connect(nivel3);
     nivel3.connect(mezcla);
 
-    // El buffer y la cadena de audio se preparan antes de comenzar.
+    // El contexto se reanuda primero para aprovechar el gesto del usuario en iOS.
     const longitud = audio.sampleRate * 2;
     const bufferRuido = audio.createBuffer(1, longitud, audio.sampleRate);
     const datosRuido = bufferRuido.getChannelData(0);
@@ -527,15 +530,25 @@
     armonico3.start();
     vibrato.start();
     ruido.start();
-    return true;
+    return reanudacion;
   }
 
   async function comenzarAudio() {
-    prepararAudio();
-    // Los navegadores suelen mantener el AudioContext suspendido hasta
-    // que el usuario pulsa «Comenzar»; en ese momento se activa el sonido.
-    if (audio.state === "suspended") await audio.resume();
+    const reanudacion = audio ? null : prepararAudio();
+    if (audio.state !== "running") await (reanudacion || audio.resume());
+    if (audio.state !== "running") {
+      throw new Error("El navegador no ha permitido activar el audio.");
+    }
     return true;
+  }
+
+  function mostrarErrorAudio(error) {
+    console.error(error);
+    mensajeActivacion.textContent =
+      "No se ha podido activar el sonido. Comprueba el volumen y los ajustes de sonido del iPhone, y pulsa «Comenzar» para intentarlo de nuevo.";
+    activar.style.display = "flex";
+    boton.disabled = false;
+    boton.textContent = "Comenzar";
   }
 
   async function iniciarJuego() {
@@ -544,16 +557,14 @@
     try {
       const listo = await comenzarAudio();
       if (listo) {
+        mensajeActivacion.textContent = mensajeActivacionInicial;
         activar.style.display = "none";
       } else {
         boton.disabled = false;
         boton.textContent = "Comenzar";
       }
     } catch (error) {
-      console.error(error);
-      alert("No se ha podido activar el sonido. Comprueba que el navegador permite audio y vuelve a intentarlo.");
-      boton.disabled = false;
-      boton.textContent = "Comenzar";
+      mostrarErrorAudio(error);
     }
   }
 
@@ -642,15 +653,14 @@
     }
 
     try {
-      if (!audio) await comenzarAudio();
-      if (audio && audio.state === "suspended") await audio.resume();
+      await comenzarAudio();
       activo = true;
       mostrarNota(evento.clientX, evento.clientY);
       ganancia.gain.cancelScheduledValues(audio.currentTime);
       ganancia.gain.setTargetAtTime(0.15, audio.currentTime, 0.015);
     } catch (error) {
-      console.error(error);
       detenerSonido();
+      mostrarErrorAudio(error);
     }
   });
 
@@ -689,13 +699,6 @@
   zona.addEventListener("pointercancel", finalizarPuntero);
   zona.addEventListener("lostpointercapture", finalizarPuntero);
 
-  // Preparar anticipadamente el sintetizador; el sonido solo se activa
-  // cuando el usuario pulsa «Comenzar» o interactúa con la zona.
-  try {
-    prepararAudio();
-  } catch (error) {
-    console.warn("El audio se preparará al pulsar Comenzar:", error);
-  }
 })();
 </script>
 </body>
