@@ -94,14 +94,14 @@
     flex: 0 0 auto; width: 100%; min-width: 0;
     padding: 0 10px clamp(7px, 1.5vh, 14px);
     display: flex; align-items: center; justify-content: center;
-    gap: 6px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    gap: 6px; flex-wrap: wrap; overflow: visible;
     text-align: center; font-size: 11px; opacity: 0.9;
     scrollbar-width: thin;
   }
   #controles {
     display: flex; align-items: center; justify-content: center;
-    gap: 6px; flex: 0 0 auto; width: max-content; margin: 0 auto;
-    flex-wrap: nowrap;
+    gap: 6px; flex: 0 1 auto; width: 100%; max-width: 100%; margin: 0 auto;
+    flex-wrap: wrap;
   }
   #etiquetaDibujo {
     flex: 0 0 auto; white-space: nowrap;
@@ -109,7 +109,8 @@
   }
   #grupoGestionPatrones {
     display: flex; align-items: center; justify-content: center;
-    gap: 6px; flex: 0 0 auto; width: max-content;
+    gap: 6px; flex: 0 1 auto; width: auto; max-width: 100%;
+    flex-wrap: wrap;
     padding: 4px 6px; border: 1px solid #76a879;
     border-radius: 11px; background: rgba(112, 170, 116, 0.16);
   }
@@ -150,14 +151,9 @@
   }
   @media (max-width: 900px), (orientation: portrait), (max-height: 560px) {
     footer {
-      flex-wrap: wrap; overflow: visible; justify-content: center;
       padding-bottom: max(7px, env(safe-area-inset-bottom));
     }
-    #controles {
-      width: 100%; max-width: 100%; flex: 0 1 auto;
-      flex-wrap: wrap; row-gap: 5px;
-    }
-    #grupoGestionPatrones { flex-wrap: wrap; }
+    #controles { row-gap: 5px; }
     #instruccion { display: none; }
   }
   #activar {
