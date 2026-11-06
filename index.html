@@ -28,23 +28,37 @@
   }
   h1 { margin: 0; font-size: clamp(16px, 2.5vw, 26px); }
   #estado {
-    display: flex; flex: 0 1 auto; align-items: center; justify-content: center;
-    gap: clamp(7px, 1.5vw, 16px); text-align: right; white-space: nowrap;
-    min-width: 0; max-width: 55%;
+    display: flex; flex: 0 0 clamp(180px, 28vw, 250px);
+    width: clamp(180px, 28vw, 250px); height: clamp(46px, 7vh, 64px);
+    align-items: center; justify-content: center;
+    gap: clamp(6px, 1vw, 12px); text-align: right; white-space: nowrap;
+    min-width: 0; max-width: none; overflow: hidden;
     padding: clamp(6px, 1.2vh, 11px) clamp(10px, 1.8vw, 18px);
     border: 1px solid rgba(43, 91, 46, 0.28);
     border-radius: 12px; background: rgba(255,255,255,0.42);
     box-shadow: 0 2px 8px rgba(37,67,43,0.08);
     font-size: clamp(12px, 1.8vw, 18px); font-variant-numeric: tabular-nums;
   }
-  #nota { font-size: clamp(17px, 2.5vw, 25px); font-weight: 800; }
-  #frecuencia { font-size: clamp(11px, 1.7vw, 16px); opacity: 0.8; }
+  #nota {
+    flex: 0 1 36%; max-width: 36%; min-width: 0; overflow: hidden;
+    text-align: center;
+    font-size: clamp(14px, 2.5vw, 25px); font-weight: 800;
+  }
+  #frecuencia {
+    flex: 0 1 64%; max-width: 64%; min-width: 0; overflow: hidden;
+    text-align: center;
+    font-size: clamp(9px, 1.7vw, 16px); opacity: 0.8;
+  }
   header h1 { min-width: 0; flex: 1 1 auto; }
   @media (max-width: 420px) {
     header { gap: 6px; }
-    #estado { max-width: 58%; gap: 6px; padding: 6px 8px; }
-    #nota { font-size: clamp(15px, 4.5vw, 19px); }
-    #frecuencia { font-size: clamp(10px, 3vw, 12px); }
+    #estado {
+      flex-basis: clamp(150px, 48vw, 190px);
+      width: clamp(150px, 48vw, 190px); height: 44px;
+      gap: 5px; padding: 6px 8px;
+    }
+    #nota { font-size: clamp(12px, 4vw, 18px); }
+    #frecuencia { font-size: clamp(8px, 2.7vw, 11px); }
   }
   #zona {
     position: relative; flex: 1; min-height: 0;
@@ -252,6 +266,7 @@
   const zona = document.getElementById("zona");
   const notaTexto = document.getElementById("nota");
   const frecuenciaTexto = document.getElementById("frecuencia");
+  const medirTexto = document.createElement("canvas").getContext("2d");
   const marcador = document.getElementById("marcador");
   const activar = document.getElementById("activar");
   const boton = document.getElementById("iniciar");
@@ -453,6 +468,26 @@
   let puntero = null;
   let armonicos = [];
 
+  function ajustarTextoAlAncho(elemento) {
+    if (!medirTexto || !elemento.clientWidth) return;
+    elemento.style.fontSize = "";
+    const estilo = getComputedStyle(elemento);
+    const tamanoBase = parseFloat(estilo.fontSize);
+    medirTexto.font = `${estilo.fontWeight} ${tamanoBase}px ${estilo.fontFamily}`;
+    const anchoTexto = medirTexto.measureText(elemento.textContent).width;
+    if (anchoTexto > elemento.clientWidth) {
+      elemento.style.fontSize = Math.max(
+        8,
+        tamanoBase * elemento.clientWidth / anchoTexto
+      ) + "px";
+    }
+  }
+
+  function ajustarTextoNota() {
+    ajustarTextoAlAncho(notaTexto);
+    ajustarTextoAlAncho(frecuenciaTexto);
+  }
+
   function obtenerNota(y) {
     const rect = zona.getBoundingClientRect();
     const posicion = Math.max(0, Math.min(1, (y - rect.top) / rect.height));
@@ -470,6 +505,7 @@
     frecuenciaTexto.textContent = dato.frecuencia.toLocaleString("es-ES", {
       minimumFractionDigits: 2, maximumFractionDigits: 2
     }) + " Hz";
+    ajustarTextoNota();
     marcador.style.left = (x - rect.left) + "px";
     marcador.style.top = (y - rect.top) + "px";
     marcador.style.opacity = "1";
@@ -727,6 +763,7 @@
   zona.addEventListener("pointerup", finalizarPuntero);
   zona.addEventListener("pointercancel", finalizarPuntero);
   zona.addEventListener("lostpointercapture", finalizarPuntero);
+  window.addEventListener("resize", ajustarTextoNota, { passive: true });
 
 })();
 </script>
